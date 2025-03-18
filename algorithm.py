@@ -1,59 +1,60 @@
-import numpy as np
+# Import necessary libraries
+import yfinance as yf
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM
+import math
+import joblib
 
-# Load the data
-df = pd.read_csv('AMZN.csv')
-df['Date'] = pd.to_datetime(df['Date'])
-df.set_index('Date', inplace=True)
-data = df['Close'].values.reshape(-1, 1)
+ticker = "AMZN"
+stock_data = yf.download(ticker, start="2015-01-01", end="2025-01-01")
 
-scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_data = scaler.fit_transform(data)
+stock_data['SMA_50'] = stock_data['Close'].rolling(window=50).mean()
+stock_data['SMA_200'] = stock_data['Close'].rolling(window=200).mean()
 
-train_size = int(len(scaled_data) * 0.8)
-train_data, test_data = scaled_data[:train_size], scaled_data[train_size:]
+stock_data = stock_data.dropna()
 
-def create_dataset(data, time_step=1):
-    X, y = [], []
-    for i in range(len(data) - time_step - 1):
-        X.append(data[i:(i + time_step), 0])
-        y.append(data[i + time_step, 0])
-    return np.array(X), np.array(y)
+features = stock_data[['Close', 'SMA_50', 'SMA_200']].values
 
-time_step = 100
-X_train, y_train = create_dataset(train_data, time_step)
-X_test, y_test = create_dataset(test_data, time_step)
+target = stock_data['Close'].shift(-1).dropna().values
 
-X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
-X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+features = features[:-1]
 
-model = Sequential()
-model.add(LSTM(50, return_sequences=True, input_shape=(time_step, 1)))
-model.add(LSTM(50, return_sequences=False))
-model.add(Dense(25))
-model.add(Dense(1))
+scaler = MinMaxScaler()
+features_scaled = scaler.fit_transform(features)
 
-model.compile(optimizer='adam', loss='mean_squared_error')
-model.fit(X_train, y_train, batch_size=1, epochs=1)
+print("\nScaled Features Sample:")
+print(features_scaled[:5])
 
-train_predict = model.predict(X_train)
-test_predict = model.predict(X_test)
+X_train, X_test, y_train, y_test = train_test_split(features_scaled, target, test_size=0.2, shuffle=False)
 
-train_predict = scaler.inverse_transform(train_predict)
-test_predict = scaler.inverse_transform(test_predict)
-y_train = scaler.inverse_transform(y_train.reshape(-1, 1))
-y_test = scaler.inverse_transform(y_test.reshape(-1, 1))
+print(f"\nTraining set size: {len(X_train)}")
+print(f"Testing set size: {len(X_test)}")
 
-plt.figure(figsize=(14, 8))
-plt.plot(df['Close'], label='Actual Stock Price')
-plt.plot(df.index[time_step:len(train_predict) + time_step], train_predict, label='Train Predict')
-plt.plot(df.index[len(train_predict) + (time_step * 2) + 1:len(df) - 1], test_predict, label='Test Predict')
-plt.title('Amazon Stock Price Prediction')
-plt.xlabel('Date')
-plt.ylabel('Stock Price')
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+predictions = model.predict(X_test)
+
+rmse = math.sqrt(mean_squared_error(y_test, predictions))
+print(f"\nRoot Mean Squared Error (RMSE): {rmse}")
+
+plt.figure(figsize=(12,6))
+plt.plot(y_test, label='Actual Prices', color='blue')
+plt.plot(predictions, label='Predicted Prices', color='red')
+plt.title(f'{ticker} Stock Price Prediction')
+plt.xlabel('Time')
+plt.ylabel('Price')
 plt.legend()
 plt.show()
+
+joblib.dump(model, 'stock_price_predictor.pkl')
+print("\nModel saved as 'stock_price_predictor.pkl'")
+
+
+loaded_model = joblib.load('stock_price_predictor.pkl')
+new_predictions = loaded_model.predict(X_test)
