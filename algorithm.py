@@ -61,7 +61,7 @@ for _ in range(n_days):
     new_row = pd.DataFrame({
         'Close': [pred]
     }, index=[new_date])
-    current_history = current_history.append(new_row)
+    current_history = current_history = pd.concat([current_history, new_row])
 
     current_history['SMA_50'] = current_history['Close'].rolling(window=50, min_periods=1).mean()
     current_history['SMA_200'] = current_history['Close'].rolling(window=200, min_periods=1).mean()
