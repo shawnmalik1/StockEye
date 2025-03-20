@@ -1,18 +1,21 @@
 # StockEye 📈👁️
-StockEye is a stock market predictor that uses machine learning to predict both short-term and long-term success of a given stock. 
+StockEye is a stock price predictor that uses machine learning to predict both short-term and long-term success of a given stock. 
 
 StockEye uses historical data from the past 10 years to train its model.
 
 ## Description 🔮
-TODO
+StockEye allows the user to input a stock ticker, fetching historical stock data from Yahoo Finance via the ```yfinance``` library, and  calculating rolling averages (50-day and 200-day SMAs) for feature engineering. 
+A linear regression model is trained on these features to predict the following day’s closing price. 
+The script also provides a short-term forecast (10 days) by iteratively updating and recalculating the SMAs. 
 
+StockEye provides the user with an intuitive and interactive graph of the predicted closing prices for the near future.
 
 ## Technologies 🖥️
 - Python
-- yfinance
-- Prophet
 - Pandas & NumPy
-- Matplotlib
+- yfinance
+- scikit-learn
+- matplotlib
 
 ## Authors ✍️
 - Developed by Shawn Malik
