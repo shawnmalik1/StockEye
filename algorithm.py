@@ -10,20 +10,18 @@ from sklearn.preprocessing import MinMaxScaler
 import math
 import joblib
 
-ticker = "AMZN"
-stock_data = yf.download(ticker, start="2015-01-01", end="2025-01-01")
+ticker = input("Enter Stock Ticker: ")
+stock_data = yf.download(ticker, start="2015-01-01")
 
 print("Stock Data Sample:")
 print(stock_data.head())
 
 stock_data['SMA_50'] = stock_data['Close'].rolling(window=50).mean()
 stock_data['SMA_200'] = stock_data['Close'].rolling(window=200).mean()
-
 stock_data = stock_data.dropna()
 
 features = stock_data[['Close', 'SMA_50', 'SMA_200']].values
 target = stock_data['Close'].shift(-1).dropna().values
-
 features = features[:-1]
 
 scaler = MinMaxScaler()
@@ -41,43 +39,44 @@ model = LinearRegression()
 model.fit(X_train, y_train)
 
 predictions = model.predict(X_test)
-
 rmse = math.sqrt(mean_squared_error(y_test, predictions))
 print(f"\nRoot Mean Squared Error (RMSE): {rmse}")
 
 plt.figure(figsize=(12, 6))
-
 plt.plot(stock_data.index[-len(y_test):], y_test, label='Actual Prices', color='blue')
 plt.plot(stock_data.index[-len(y_test):], predictions, label='Predicted Prices', color='red')
 
-last_data_point = stock_data[['Close', 'SMA_50', 'SMA_200']].iloc[-1:].values
-last_data_scaled = scaler.transform(last_data_point)
+last_row = stock_data[['Close', 'SMA_50', 'SMA_200']].iloc[-1:]
+last_scaled = scaler.transform(last_row.values)
 
 n_days = 10
 future_predictions = []
+current_history = stock_data.copy()
 
 for _ in range(n_days):
-    prediction = model.predict(last_data_scaled)
-    future_predictions.append(prediction[0])
+    pred = model.predict(last_scaled)[0]
+    future_predictions.append(pred)
 
-    new_sma_50 = (stock_data['Close'].rolling(window=50).mean().iloc[-1] + prediction[0]) / 2
-    new_sma_200 = (stock_data['Close'].rolling(window=200).mean().iloc[-1] + prediction[0]) / 2
+    new_date = current_history.index[-1] + pd.Timedelta(days=1)
+    new_row = pd.DataFrame({
+        'Close': [pred]
+    }, index=[new_date])
+    current_history = current_history.append(new_row)
 
-    last_data_scaled = np.array([[prediction[0], new_sma_50, new_sma_200]])
-    last_data_scaled = last_data_scaled.reshape(1, -1)
+    current_history['SMA_50'] = current_history['Close'].rolling(window=50, min_periods=1).mean()
+    current_history['SMA_200'] = current_history['Close'].rolling(window=200, min_periods=1).mean()
 
-    last_data_scaled = scaler.transform(last_data_scaled)
+    last_features = current_history[['Close', 'SMA_50', 'SMA_200']].iloc[-1:].values
+    last_scaled = scaler.transform(last_features)
 
-future_dates = pd.date_range(stock_data.index[-1], periods=n_days + 1, freq='B')[1:]
+future_dates = pd.date_range(start=current_history.index[-n_days], periods=n_days, freq='B')
 plt.plot(future_dates, future_predictions, label='Future Predictions', color='green', linestyle='--')
 
 plt.title(f'{ticker} Stock Price Prediction')
 plt.xlabel('Date')
 plt.ylabel('Price')
 plt.legend()
-
 plt.xticks(rotation=45)
-
 plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
 plt.gca().xaxis.set_minor_locator(mdates.WeekdayLocator())
