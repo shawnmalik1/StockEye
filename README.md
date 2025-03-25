@@ -1,5 +1,5 @@
 # StockEye 📈👁️
-StockEye is a stock price predictor that uses machine learning to predict the short-term success of a given stock. 
+StockEye is a stock price predictor that uses a linear regression machine learning model to predict the short-term success of a given stock. 
 
 StockEye uses historical data from the past 10 years to train its model.
 
